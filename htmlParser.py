@@ -1,7 +1,8 @@
-# Parse HTML page to extract data in table
-#
-# run with command such as:
-# python ./htmlParser.py ./testDir
+# parse HTML page to extract data in table
+# script needs to be run where the directory containing the html files is located
+# can be run against a single file in current working directory or all files in a given directory in current working directory
+# run with command such as (obviously an example command below):
+# python .\htmlParser.py .\testDir
 
 import sys
 import os
@@ -226,40 +227,47 @@ if __name__ == '__main__':
         fileNames = []
         # determines if the given argument is a file or directory
         if filePath[2:].find('.') > 0:
-            print(f"given filepath {filePath}")
+            # print file path and add to fileNames array 
+            print(f"Given filepath: {filePath}")
             fileNames.append(filePath)
         else:
-            print(f"given directory: {filePath}")
-
-            #print(f"filepath in try {filePath}")
+            # assuming if no . in argument then it is a directory
+            print(f"Given directory: {filePath}")
             allEntries = os.listdir(filePath)
+
             #print(f"file or directory contents {allEntries}")
-            # Filter out directories, keeping only files
+            # filter out directories, keeping only files
             for entry in allEntries:
+                # prefix directory path to file name to get full relative path (not to be mistaken with absolute path duh)
                 fullPath = os.path.join(filePath, entry)
                 #print(f"full_path: {fullPath}")
+                # we're checking things in a directory to only add files to the fileNames array
                 if os.path.isfile(fullPath):
                     fileNames.append(fullPath)
 
+        # now we have a list of files to process in fileNames array only printing number unless I want more detail
         #print(f"compiled file names: {fileNames}")
         print(f"Number of found files in directory: {len(fileNames)}")
 
         for file in fileNames:
-            # read data from html file
+            # read data from html file, we aren't worried about efficiency since it's not a lot of data
             fileData = Path(fileNames[0]).read_text()
 
             # collect table data labels
-            for labs in parseLabels(fileData):
-                if labs not in labels:
-                    labels.append(labs)
+            for label in parseLabels(fileData):
+                if label not in labels:
+                    labels.append(label)
 
+        # now we have a list of all column headers in labels, only printing number unless I want more detail
         #print(f"found labels: {labels}")
         print(f"Total number of labels found: {len(labels)}\n")
 
-        # collect table values
+        # TODO confirm total number of labels expected with real data 
+
+        # collect table data values
         fileCounter = 1
         for file in fileNames:
-            # read data from html file
+            # read data from html file, we aren't worried about efficiency since it's not a lot of data
             fileData = Path(fileNames[0]).read_text()
 
             if len(compiledData) < 5:
@@ -267,12 +275,16 @@ if __name__ == '__main__':
             else:
                 compiledData = pd.concat([parseData(fileData, labels), compiledData], ignore_index = True)
 
+            # print cumulative number of rows processed after each file - good to remove from for loop after complete testing
             print(f"After {fileCounter} file processed {len(compiledData)} rows\n")
             fileCounter += 1
-        #compiledData = pd.concat([parseData(fileData, labels), compiledData], ignore_index = True)
-        #print(f"after 2 runs len(compiledData) {len(compiledData)}")
 
         # export csv
+        # this is a hardcoded output file name
         compiledData.to_csv("./parsedData.csv")
+
+        # TODO pull current date and append to csv file name to avoid overwriting previous data files
+
+    # try block failure error handling
     except Exception as e:
-        print(f"Error openeing file: {e}")
+        print(f"Error opening file: {e}")
