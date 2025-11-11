@@ -25,7 +25,7 @@ def parseData(data, labels):
         tbodyStart  = data.find("<tbody")
         tbodyEnd    = data.find("</tbody")
     else:
-        print("no table body found")
+        print("No table body found!")
         return
 
     #print(f"tbodyStart = {tbodyStart}")
@@ -49,21 +49,20 @@ def parseData(data, labels):
     #print(f"first class found at {classStart}")
 
     labeledRowData = {}
-    for lab in labels:
-        labeledRowData[lab] = "NO_DATA"
+    for label in labels:
+        labeledRowData[label] = "Null"
 
     while inTableBody:
         #rowData = list()
-
 
         classCount  += 1
 
         labelStart = classStart + 7
         labelEnd   = data[labelStart:].find("\"") + labelStart + 1
-        label = data[labelStart:labelEnd-1]
+        labelCheck = data[labelStart:labelEnd-1]
 
-        # verified field does not follow standard of other table fields and must be hard coded
-        if label == "verified":
+        # verified field does not follow standard of other table fields and must be hard coded because of vendor stupidity
+        if labelCheck == "verified":
             fieldStart  = data[labelStart - 150:labelStart].find("verified:") + labelStart - 140
             fieldEnd    = data[fieldStart:rowEnd].find("\n") + fieldStart
             field       = data[fieldStart:fieldEnd].strip()
@@ -74,13 +73,13 @@ def parseData(data, labels):
             fieldEnd    = data[fieldStart:rowEnd].find("<") + fieldStart
             field       = data[fieldStart:fieldEnd].strip()
 
-        # only populate data from the found labels
+        # only populate data from the found labels; overwrite null value
         if field:
-            labeledRowData[label] = field
+            labeledRowData[labelCheck] = field
             #if rowCount == 1:
-                #print(f"found label {label} and field {field}")
+                #print(f"found label {labelCheck} and field {field}")
                 #print(f"labeledRowData now: {labeledRowData} ")
-                #print(f"headerStart: {labelStart}  headerEnd: {labelEnd}  Header: {label}  field: {field}")
+                #print(f"headerStart: {labelStart}  headerEnd: {labelEnd}  Header: {labelCheck}  field: {field}")
 
         # find next class
         classStart += 6
@@ -92,20 +91,20 @@ def parseData(data, labels):
 
             #if rowCount == 1 or rowCount == 2:
             # add the current rows found data to the total found data and clear working dictionary
-            for lab in labels:
-                #print(f"Working on label {lab} adding value {labeledRowData[lab]}")
-                compiledData[lab] += [labeledRowData[lab]]
-                labeledRowData[lab] = "NO_DATA"
+            for label in labels:
+                #print(f"Working on label {label} adding value {labeledRowData[label]}")
+                compiledData[label] += [labeledRowData[label]]
+                labeledRowData[label] = "Null"
 
             # checks if there are no more rows left
             if data[rowEnd+3:].find("<tr") + rowEnd > tbodyEnd or data[rowEnd+3:].find("<tr") == -1:
-                print("found end of file's table")
+                print("Found end of file's table")
                 #print(f"compiledData: {compiledData}")
                 print(f"Rows in file: {len(compiledData[labels[0]])}")
                 inTableBody = False
                 break
 
-            # more rows round, reset rowStart and rowEnd to the next row
+            # more rows found, reset rowStart and rowEnd to the next row
             else:
                 rowStart = data[rowEnd+3:].find("<tr") + rowEnd
                 rowEnd   = data[rowStart:].find("</tr>") + rowStart + 1
@@ -115,10 +114,9 @@ def parseData(data, labels):
                 rowCount += 1
 
     #print(f"found labels: {foundLabels}")
+    # finally convert compiled data to pandas dataframe for easy csv export
     df = pd.DataFrame(compiledData)
     return df
-    print(f"processed rows {rowCount}")
-    return firstRow
 
 def parseLabels(data):
     foundLabels = list()
@@ -129,10 +127,14 @@ def parseLabels(data):
     # checks that there is a table body in the file
     if data[:].find("<tbody"):
         inTableBody = True
+        # will give starting index of first occurrence of tbody tag
         tbodyStart  = data.find("<tbody")
+        # will give starting index of first occurrence of tbody end tag
         tbodyEnd    = data.find("</tbody")
+
     else:
-        print("no table body found")
+        # this may turn into a headache later if formatting is inconsistent between files, basic basic error handling for now
+        print("No table body found!")
         return
 
     #print(f"tbodyStart = {tbodyStart}")
@@ -141,11 +143,13 @@ def parseLabels(data):
     # find where the table row starts and ends
     rowStart    = 0
     rowEnd      = 0
+    # adding the offset of tbodyStart to get the correct index in rowStart
     rowStart    = data[tbodyStart:].find("<tr") + tbodyStart
+    # adding the offset of rowStart to get the correct index in rowEnd
     rowEnd      = data[rowStart:].find("</tr>") + rowStart + 1
     rowCount    = 1
 
-    # find possible labels in class tags
+    # find possible labels in class tags, we don't like buttons
     classStart = rowStart
     classStart = data[classStart:rowEnd].find("class=") + classStart
     classCount = 0
@@ -161,7 +165,7 @@ def parseLabels(data):
                 inTableBody = False
                 break
 
-            # if going to a new row reset row pointers
+            # if going to a new row reset row index (keri doesn't know c++ to use pointers); else logic can turn into a headache later if formatting is inconsistent
             else:
                 rowStart = data[rowEnd+3:].find("<tr") + rowEnd
                 rowEnd   = data[rowStart:].find("</tr>") + rowStart + 1
@@ -173,12 +177,12 @@ def parseLabels(data):
         # used for internal testing
         classCount  += 1
 
-        # find the next potential label
+        # find the next potential label, hopefully 7 characters from start of class to data value
         labelStart = classStart + 7
         labelEnd   = data[labelStart:].find("\"") + labelStart + 1
         label = data[labelStart:labelEnd-1]
 
-        # verified field does not follow standard of other table fields and must be hard coded
+        # verified field does not follow standard of other table fields and must be hard coded because of vendor stupidity
         if label == "verified":
             fieldStart  = data[labelStart - 150:labelStart].find("verified:") + labelStart - 140
             fieldEnd    = data[fieldStart:rowEnd].find("\n") + fieldStart
@@ -186,7 +190,7 @@ def parseLabels(data):
 
         # all other fields follow same standard
         else:
-            # fill field value after found label
+            # fill field value after found label, delimited by html tags
             fieldStart  = data[labelEnd:rowEnd].find(">") + labelEnd + 1
             fieldEnd    = data[fieldStart:rowEnd].find("<") + fieldStart
             field       = data[fieldStart:fieldEnd].strip()
@@ -200,7 +204,7 @@ def parseLabels(data):
             if label not in foundLabels:
                 foundLabels.append(label)
 
-        # offset the class start pointer by it's match length and search for next match
+        # offset the class start index by it's match length and search for next match
         classStart += 6
         classStart += data[(classStart):rowEnd].find("class=")
 
